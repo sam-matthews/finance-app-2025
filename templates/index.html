@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Expense App</title>
+        <link rel="stylesheet" href="/static/styles.css" />
+        <link rel="icon" type="image/x-icon" href="/static/favicon.ico" />
+    </head>
+    <body>
+        <div id="app">
+            <h1>Expenses App - Starter</h1>
+
+            <div id = "auth">
+                <h2>Register / Login</h2>
+                <input id="email" type="email" placeholder="Email" required><br>
+                <input id="password" type="password" placeholder="Password" required minlength="1" maxlength="72" autocomplete="off"><br>
+                <button id="btn-register">Register</button>
+                <button id="btn-login">Login</button>
+                <button id="btn-forgot-password">Forgot Password</button>
+                <div id="auth-message"></div>
+                
+                <div id="reset-password-section" style="display:none;">
+                    <h3>Reset Password</h3>
+                    <input id="reset-token" type="text" placeholder="Reset Token" required><br>
+                    <input id="new-password" type="password" placeholder="New Password" required minlength="1" maxlength="72" autocomplete="off"><br>
+                    <button id="btn-reset-password">Reset Password</button>
+                    <div id="reset-message"></div>
+                </div>
+            </div>
+
+            <hr>
+
+            <div id="entry" style="display:none;">
+                <div class="header">
+                    <h2>Add Expense</h2>
+                    <button id="btn-back">Back</button>
+                    <button id="btn-logout">Logout</button>
+                </div>
+                <input id="date" type="date" required><br>
+                <input id="description" placeholder="Description"><br>
+                <input id="category" placeholder="Category"><br>
+                <input id="amount" type="number" step="0.01" placeholder="Amount" required><br>
+                <div id="expense-message"></div>
+                <button id="btn-add">Add</button>
+                <div id="add-msg"></div>
+
+                <hr>
+                <button id="btn-report">Get Weekly Report</button>
+                <div id="report"></div>
+            </div>
+        </div>
+
+        <script src="/static/app.js"></script>
+    </body>        
+</html>
