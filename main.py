@@ -51,6 +51,7 @@ class RegisterModel(BaseModel):
             raise ValueError('Password cannot be empty')
         if len(v.encode('utf-8')) > 72:
             raise ValueError('Password is too long. Maximum length is 72 bytes.')
+        return v
 
 class PasswordResetRequestModel(BaseModel):
     email: str
@@ -134,22 +135,27 @@ async def validation_exception_handler(request: Request, exc: ValidationError):
     )
 
 @app.post("/api/register")
-def register(user: RegisterModel, db: Session = Depends(get_db)):
+async def register(user: RegisterModel, db: Session = Depends(get_db)):
     try:
         # Check if user exists
         if db.query(User).filter(User.email == user.email).first():
             return {"ok": False, "error": "Email already registered"}
-        
+            
         # Try to hash password and catch validation errors
         try:
             hashed_password = hash_password(user.password)
         except ValueError as e:
+            print(f"Password hashing error: {str(e)}")
             return {"ok": False, "error": str(e)}
             
-        # Create new user
-        db_user = User(email=user.email, hashed_password=hashed_password)
+        # Create new user with proper field names matching the model
+        db_user = User(
+            email=user.email,
+            hashed_password=hashed_password  # This matches the column name in models.py
+        )
         db.add(db_user)
         db.commit()
+        db.refresh(db_user)  # Refresh to ensure we have the ID
         
         # Generate token and return
         token = create_access_token(db_user.id)
