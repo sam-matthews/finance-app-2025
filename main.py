@@ -3,9 +3,11 @@ from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware import Middleware
+import time
 from sqlalchemy.orm import Session
 from database import SessionLocal, engine, Base, SessionLocal
-from models import User, Expense
+from models import User, Expense, ExpenseType, Account
 from auth import (
     get_db, hash_password, verify_password, create_access_token,
     get_current_user, create_reset_token, verify_reset_token
@@ -26,6 +28,17 @@ app.add_middleware(
     allow_methods=["*"],  # Allows all methods
     allow_headers=["*"],  # Allows all headers
 )
+
+# Add cache control middleware
+@app.middleware("http")
+async def add_cache_control_header(request: Request, call_next):
+    response = await call_next(request)
+    if request.url.path.startswith("/static"):
+        # Prevent caching of static files
+        response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+        response.headers["Pragma"] = "no-cache"
+        response.headers["Expires"] = "0"
+    return response
 
 app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
@@ -78,11 +91,17 @@ class ExpenseIn(BaseModel):
     description: str | None = None
     category: str | None = None
     amount: float
+    type_id: int
+    account_id: int
 
 # --- Routes ---
 @app.get("/", response_class=HTMLResponse)
-def index (request: Request):
-    return templates.TemplateResponse("index.html", {"request": request})
+def index(request: Request):
+    # Add timestamp for cache busting
+    return templates.TemplateResponse(
+        "index.html", 
+        {"request": request, "timestamp": int(time.time())}
+    )
 
 # --- API Routes ---
 
@@ -172,9 +191,36 @@ def login(data: LoginModel, db: Session = Depends(get_db)):
     token = create_access_token(user.id)
     return {"ok": True, "token": token}
 
+@app.get("/api/expense-types")
+def get_expense_types(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    types = db.query(ExpenseType).all()
+    return {"ok": True, "types": [{"id": t.id, "name": t.name, "description": t.description} for t in types]}
+
+@app.get("/api/accounts")
+def get_accounts(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    accounts = db.query(Account).all()
+    return {"ok": True, "accounts": [{"id": a.id, "name": a.name, "description": a.description} for a in accounts]}
+
 @app.post("/api/expenses")
 def add_expense(exp: ExpenseIn, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    e = Expense(user_id = current_user.id, date=exp.date, description=exp.description or "", category=exp.category or "", amount=exp.amount)
+    # Verify that type_id and account_id exist
+    expense_type = db.query(ExpenseType).filter(ExpenseType.id == exp.type_id).first()
+    if not expense_type:
+        return {"ok": False, "error": "Invalid expense type"}
+    
+    account = db.query(Account).filter(Account.id == exp.account_id).first()
+    if not account:
+        return {"ok": False, "error": "Invalid account"}
+
+    e = Expense(
+        user_id=current_user.id,
+        date=exp.date,
+        description=exp.description or "",
+        category=exp.category or "",
+        amount=exp.amount,
+        type_id=exp.type_id,
+        account_id=exp.account_id
+    )
     db.add(e)
     db.commit()
     db.refresh(e)

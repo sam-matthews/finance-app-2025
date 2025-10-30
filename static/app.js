@@ -174,6 +174,9 @@ async function handleLogin() {
 function onLoggedIn() {
     document.getElementById('auth').style.display = 'none';
     document.getElementById('entry').style.display = 'block';
+    // Load lookup data after successful login
+    loadExpenseTypes();
+    loadAccounts();
 }
 
 function setupExpense() {
@@ -183,25 +186,83 @@ function setupExpense() {
     }
 }
 
+async function loadExpenseTypes() {
+    try {
+        const res = await api('/api/expense-types', {
+            method: 'GET',
+            headers: headersWithAuth(),
+        });
+        console.log('Expense Types Response:', res); // Debug log
+
+        if (res && res.ok) {
+            const select = document.getElementById('expense-type');
+            res.types.forEach(type => {
+                const option = document.createElement('option');
+                option.value = type.id;
+                option.textContent = type.name;
+                option.title = type.description;
+                select.appendChild(option);
+            });
+        }
+    } catch (err) {
+        console.error('Failed to load expense types:', err);
+    }
+}
+
+async function loadAccounts() {
+    try {
+        const res = await api('/api/accounts', {
+            method: 'GET',
+            headers: headersWithAuth(),
+        });
+        console.log('Accounts Response:', res); // Debug log
+
+        if (res && res.ok) {
+            const select = document.getElementById('account');
+            res.accounts.forEach(account => {
+                const option = document.createElement('option');
+                option.value = account.id;
+                option.textContent = account.name;
+                option.title = account.description;
+                select.appendChild(option);
+            });
+        }
+    } catch (err) {
+        console.error('Failed to load accounts:', err);
+    }
+}
+
 async function handleAddExpense() {
     const date = document.getElementById('date')?.value || '';
     const description = document.getElementById('description')?.value || '';
     const category = document.getElementById('category')?.value || '';
+    const typeId = document.getElementById('expense-type')?.value || '';
+    const accountId = document.getElementById('account')?.value || '';
     const amountRaw = document.getElementById('amount')?.value || '';
     const amount = parseFloat(amountRaw || 0);
 
     const msgEl = document.getElementById('expense-message');
 
-    if (!date || !amount) {
-        if (msgEl) msgEl.innerText = 'Date and amount are required';
+    if (!date || !amount || !typeId || !accountId) {
+        if (msgEl) msgEl.innerText = 'Date, amount, expense type, and account are required';
         return;
     }
 
     try {
+        const data = { 
+            date, 
+            description, 
+            category, 
+            amount,
+            type_id: parseInt(typeId),
+            account_id: parseInt(accountId)
+        };
+        console.log('Sending expense data:', data);  // Debug log
+        
         const res = await api('/api/expenses', {
             method: 'POST',
             headers: headersWithAuth(),
-            body: JSON.stringify({ date, description, category, amount }),
+            body: JSON.stringify(data),
         });
 
         if (res && res.ok) {
@@ -213,6 +274,8 @@ async function handleAddExpense() {
             document.getElementById('date').value = '';
             document.getElementById('description').value = '';
             document.getElementById('category').value = '';
+            document.getElementById('expense-type').value = '';
+            document.getElementById('account').value = '';
             document.getElementById('amount').value = '';
         } else {
             if (msgEl) {

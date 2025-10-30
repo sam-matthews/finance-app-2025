@@ -1,7 +1,7 @@
 from database import Base, engine
 
 # Import all models so they can be created
-from models import User, Expense
+from models import User, Expense, ExpenseType, Account
 
 def init_db():
     print("Creating database tables...")
